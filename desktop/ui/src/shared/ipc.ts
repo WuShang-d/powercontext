@@ -28,6 +28,7 @@ import type {
   DesktopState,
   ProfileInput,
   ScopePage,
+  SessionSummary,
 } from "../generated/ipc";
 export async function getFoundationInfo(): Promise<FoundationInfo | null> {
   if (!isTauri()) return null;
@@ -39,6 +40,10 @@ export const desktopApi = {
     invoke<ExactScopeStatistics>("get_stats", { generation, period }),
   cancelStats: (generation: number) =>
     invoke<void>("cancel_stats_reads", { generation }),
+  sessionSummary: () => invoke<SessionSummary>("session_summary"),
+  resetSessionObservations: () => invoke<void>("reset_session_observations"),
+  previewSessionDiagnostics: () =>
+    invoke<string>("preview_session_diagnostics"),
   remember: (generation: number, text: string) =>
     invoke<WriteOutcome>("remember_memory", { generation, text }),
   search: (generation: number, query: string) =>

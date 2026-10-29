@@ -20,6 +20,7 @@ use powercontext_desktop::{
     connections::{profiles::ProfileRepository, session::ConnectionManager},
     credentials::NativeVault,
     error::SafeError,
+    session_observations::{ObservationOutcome, ObservationUnit, ObservedOperation},
     transport::{
         ExactRecallTokenStatistics, ExactScopeStatistics, ExactScopeStatisticsItem,
         MAX_RESPONSE_BYTES, wire::*,
@@ -241,6 +242,28 @@ async fn statistics_use_only_the_current_exact_scope_and_preserve_null_usage() {
         .await
         .unwrap();
     assert_eq!(result.scope_ids, ["scope-a"]);
+    let summary = fixture.manager.observations().summary().unwrap();
+    assert!(
+        summary
+            .coverage
+            .http_operations
+            .contains(&ObservedOperation::GetStats)
+    );
+    assert!(
+        summary
+            .coverage
+            .user_operations
+            .contains(&ObservedOperation::GetStats)
+    );
+    for unit in [ObservationUnit::HttpRequest, ObservationUnit::UserOperation] {
+        let records: Vec<_> = summary
+            .recent
+            .iter()
+            .filter(|record| record.operation == ObservedOperation::GetStats && record.unit == unit)
+            .collect();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].outcome, ObservationOutcome::Success);
+    }
     assert!(result.usage.totals.generation.input_tokens.is_none());
     assert!(result.recall.estimator.is_none());
     assert!(result.by_scope[0].recall.estimator.is_none());
@@ -272,6 +295,18 @@ async fn denied_statistics_never_retry_with_broader_selection() {
             expected
         );
         assert_eq!(fixture.requests.lock().unwrap().len(), 1);
+        let summary = fixture.manager.observations().summary().unwrap();
+        for unit in [ObservationUnit::HttpRequest, ObservationUnit::UserOperation] {
+            let records: Vec<_> = summary
+                .recent
+                .iter()
+                .filter(|record| {
+                    record.operation == ObservedOperation::GetStats && record.unit == unit
+                })
+                .collect();
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].outcome, ObservationOutcome::Failure);
+        }
     }
 }
 
@@ -347,6 +382,18 @@ async fn cancelled_or_changed_context_discards_pending_statistics() {
             .unwrap()
             .unwrap();
         assert_eq!(result.unwrap_err().code, SafeError::StaleContext);
+        let summary = fixture.manager.observations().summary().unwrap();
+        for unit in [ObservationUnit::HttpRequest, ObservationUnit::UserOperation] {
+            let records: Vec<_> = summary
+                .recent
+                .iter()
+                .filter(|record| {
+                    record.operation == ObservedOperation::GetStats && record.unit == unit
+                })
+                .collect();
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].outcome, ObservationOutcome::Cancelled);
+        }
     }
 }
 
