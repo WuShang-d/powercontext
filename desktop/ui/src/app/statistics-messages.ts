@@ -19,6 +19,7 @@ export const statisticsMessages = {
     title: "Current-Scope inventory and usage",
     noScope:
       "Activate a connection and select an exact Scope to view statistics.",
+    contextPending: "Switching connection or Scope…",
     unavailable:
       "Statistics are not qualified for this connection. Memory operations remain independent.",
     initial: "Statistics have not been loaded for this Scope and period.",
@@ -86,6 +87,7 @@ export const statisticsMessages = {
   zh: {
     title: "当前范围的存量与用量",
     noScope: "请启用连接并选择精确范围后查看统计。",
+    contextPending: "正在切换连接或范围…",
     unavailable: "此连接尚无统计操作的兼容资格。不影响独立的 Memory 操作。",
     initial: "尚未加载此范围及周期的统计。",
     refresh: "加载统计",

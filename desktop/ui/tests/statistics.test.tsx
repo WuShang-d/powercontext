@@ -145,27 +145,47 @@ test("statistics require an exact Scope and operation qualification without fabr
   expect(desktopApi.stats).not.toHaveBeenCalled();
 });
 
-test("a pending context transition hides statistics and discards its late response", async () => {
-  const user = userEvent.setup();
-  let finish!: (value: ExactScopeStatistics) => void;
-  vi.mocked(desktopApi.stats).mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const view = render(<Statistics {...props} />);
-  await user.click(screen.getByRole("button", { name: "Load statistics" }));
-  view.rerender(<Statistics {...props} contextPending />);
-  expect(screen.queryByRole("button", { name: "Load statistics" })).toBeNull();
-  expect(screen.queryByRole("table")).toBeNull();
-  // Even a failed transition that leaves the original generation must not
-  // revive a response started before that transition.
-  view.rerender(<Statistics {...props} />);
-  await act(async () => finish(statistics()));
-  expect(screen.queryByRole("table")).toBeNull();
-  expect(screen.getByText(/not been loaded/)).toBeTruthy();
-});
+test.each(["en", "zh"] as const)(
+  "a pending context transition hides statistics and discards its late response in %s",
+  async (language) => {
+    const user = userEvent.setup();
+    const localized = { ...props, language };
+    const loadLabel = language === "en" ? "Load statistics" : "加载统计";
+    let finish!: (value: ExactScopeStatistics) => void;
+    vi.mocked(desktopApi.stats).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const view = render(<Statistics {...localized} />);
+    await user.click(screen.getByRole("button", { name: loadLabel }));
+    view.rerender(<Statistics {...localized} contextPending />);
+    expect(screen.queryByRole("button", { name: loadLabel })).toBeNull();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe(
+      language === "en"
+        ? "Switching connection or Scope…"
+        : "正在切换连接或范围…",
+    );
+    expect(
+      screen.queryByText(
+        language === "en"
+          ? /Statistics are not qualified/
+          : /此连接尚无统计操作/,
+      ),
+    ).toBeNull();
+    // Even a failed transition that leaves the original generation must not
+    // revive a response started before that transition.
+    view.rerender(<Statistics {...localized} />);
+    await act(async () => finish(statistics()));
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(
+      screen.getByText(language === "en" ? /not been loaded/ : /尚未加载/),
+    ).toBeTruthy();
+    expect(desktopApi.stats).toHaveBeenCalledTimes(1);
+  },
+);
 
 test.each(["en", "zh"] as const)(
   "empty inventory preserves real zeros, UTC dates and chart tables in %s",

@@ -144,7 +144,9 @@ export function Statistics({
   return (
     <section className="card stack statistics" aria-labelledby={titleId}>
       <h2 id={titleId}>{t.title}</h2>
-      {!active?.scope ? (
+      {contextPending ? (
+        <p role="status">{t.contextPending}</p>
+      ) : !active?.scope ? (
         <p>{t.noScope}</p>
       ) : !enabled ? (
         <p>{t.unavailable}</p>
